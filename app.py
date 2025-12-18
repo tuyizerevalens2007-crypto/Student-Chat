@@ -1,0 +1,54 @@
+import streamlit as st
+import google.generativeai as genai
+from PIL import Image
+
+st.set_page_config(page_title="Students Chat", page_icon="🎓")
+st.title("🎓 Students Chat")
+
+# ENTER YOUR KEY HERE OR IN SIDEBAR
+api_key = st.sidebar.text_input("AIzaSyCKKwNQM9EiCr-AaWnti0IWuGuWE6zh34k", type="password")
+
+if api_key:
+    try:
+        genai.configure(api_key=api_key)
+        
+        # We use Gemini 3 Flash - the latest for Dec 2025
+        # If this fails, the 'except' block will catch it
+        model = genai.GenerativeModel("gemini-3-flash-preview")
+        
+        st.sidebar.success("✅ Connected to Gemini 3")
+        
+        # File Uploaders
+        uploaded_image = st.sidebar.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+        uploaded_audio = st.sidebar.file_uploader("Upload Audio", type=["mp3", "wav"])
+
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        if prompt := st.chat_input("How can I help you study today?"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # Build parts list
+            parts = [prompt]
+            if uploaded_image:
+                parts.append(Image.open(uploaded_image))
+            if uploaded_audio:
+                parts.append({"mime_type": uploaded_audio.type, "data": uploaded_audio.read()})
+
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    response = model.generate_content(parts)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    
+    except Exception as e:
+        st.error(f"Model Error: {e}")
+        st.info("Tip: Run 'pip install -U google-generativeai' in your terminal.")
+else:
+    st.warning("Please enter your API Key in the sidebar to begin.")
